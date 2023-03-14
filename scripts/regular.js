@@ -75,56 +75,6 @@ let {
 
 const apiKey = "nPhiDvmqv4cvRyesDqfd7ukYeyg2bUgbgo0BUT0o"
 
-function getCurrenciesHistorical(key, start, end, currency) {
-	return webix.ajax()
-		.get(`https://api.freecurrencyapi.com/v1/historical?apikey=${key}&currencies=USD&base_currency=${currency}&date_from=${end}T00:00:00&date_to=${start}T00:00:00`)
-		.then(arr => {
-			var arr1 = arr.json();
-			var raw = arr1.data;
-			const obj = {
-				...raw,
-				id: currency
-			};
-			console.log(obj, "here it is")
-			setToCacheHistory(obj, end_date, currency);
-		})
-		.catch(err => {
-			webix.message("CurrencyHistorical: Server side error, see console", "error");
-		});
-}
-
-function getCurrencies(key, currency) {
-	return webix.ajax()
-		.get(`https://api.freecurrencyapi.com/v1/latest?apikey=${key}&currencies=USD&base_currency=${currency}`)
-
-		.then(datas => {
-			var jsons = datas.json();
-			var raw = jsons.data;
-			const obj = {
-				...raw,
-				date: format_api_date(new Date()),
-				id: currency
-			};
-			console.log(obj)
-			setToCache(obj, format_api_date(new Date()), currency);
-		})
-		.catch(err => {
-			webix.message("Server side error current, see console", "error");
-		});
-}
-
-
-getCurrenciesHistorical(apiKey, start_date, end_date, "EUR")
-getCurrenciesHistorical(apiKey, start_date, end_date, "CAD")
-getCurrenciesHistorical(apiKey, start_date, end_date, "GBP")
-getCurrenciesHistorical(apiKey, start_date, end_date, "PLN")
-
-getCurrencies(apiKey, "EUR")
-getCurrencies(apiKey, "CAD")
-getCurrencies(apiKey, "GBP")
-getCurrencies(apiKey, "PLN")
-
-
 const todayRate = new webix.DataCollection({
 	data: webix.storage.session.get("rate-data") || []
 });
@@ -157,7 +107,57 @@ function setToCacheHistory(data, date, currency) {
 		date: date
 	});
 }
+function getCurrenciesHistorical(key, start, end, currency) {
+    let cache_exist = historyRate.getItem("EUR")
+    if (cache_exist) {
+        return webix.promise.resolve(historyRate);
+      } else 
+	return webix.ajax()
+		.get(`https://api.freecurrencyapi.com/v1/historical?apikey=${key}&currencies=USD&base_currency=${currency}&date_from=${end}T00:00:00&date_to=${start}T00:00:00`)
+		.then(arr => {
+			var arr1 = arr.json();
+			var raw = arr1.data;
+			const obj = {
+				...raw,
+				id: currency
+			};
+			setToCacheHistory(obj, end_date, currency);
+		})
+		.catch(err => {
+			webix.message("CurrencyHistorical: Server side error, see console", "error");
+		});
+}
 
+function getCurrencies(key, currency) {
+    let cache_exist = todayRate.getItem("EUR")
+    if (cache_exist) {
+        return webix.promise.resolve(todayRate);
+      } else 
+	return webix.ajax()
+		.get(`https://api.freecurrencyapi.com/v1/latest?apikey=${key}&currencies=USD&base_currency=${currency}`)
+
+		.then(datas => {
+			var jsons = datas.json();
+			var raw = jsons.data;
+			const obj = {
+				...raw,
+				date: format_api_date(new Date()),
+				id: currency
+			};
+			setToCache(obj, format_api_date(new Date()), currency);
+		})
+		.catch(err => {
+			webix.message("Server side error current, see console", "error");
+		});
+}
+
+let CAD = []
+let EUR = []
+let GBP = []
+let PLN = []
+const currencies = ["EUR", "CAD", "GBP", "PLN"];
+currencies.forEach(c => getCurrenciesHistorical(apiKey, start_date, end_date, c));
+currencies.forEach(c => getCurrencies(apiKey, c));
 /*
 if (todayRate && historyRate) {
   
@@ -178,20 +178,15 @@ getCurrencies(apiKey, "PLN"),
     });
   }
 */
+const cache = {};
+currencies.forEach(currency => {
+  cache[currency] = todayRate.getItem(currency);
+});
 
-const cache_eur = todayRate.getItem("EUR");
-const cache_cad = todayRate.getItem("CAD");
-const cache_gbp = todayRate.getItem("GBP");
-const cache_pln = todayRate.getItem("PLN");
-const cache_history_eur = historyRate.getItem("EUR");
-const cache_history_cad = historyRate.getItem("CAD");
-const cache_history_gbp = historyRate.getItem("GBP");
-const cache_history_pln = historyRate.getItem("PLN");
-
-let CAD = []
-let EUR = []
-let GBP = []
-let PLN = []
+const cache_history = {}
+currencies.forEach(currency => {
+    cache_history[currency] = historyRate.getItem(currency);
+  });
 
 const removeProps = (...propsToFilter) => obj => {
 	const newObj = Object.assign({}, obj);
@@ -199,10 +194,10 @@ const removeProps = (...propsToFilter) => obj => {
 	return newObj;
 };
 
-let history_clean_eur = removeProps('currency', 'id')(cache_history_eur);
-let history_clean_cad = removeProps('currency', 'id')(cache_history_cad);
-let history_clean_gbp = removeProps('currency', 'id')(cache_history_gbp);
-let history_clean_pln = removeProps('currency', 'id')(cache_history_pln);
+const history_clean = {}
+currencies.forEach(currency => {
+    history_clean[currency] = removeProps('currency', 'id')(cache_history[currency]);
+  });
 
 function createChartData(history, currencyName, arrayName) {
 	for (let date in history) {
@@ -211,24 +206,37 @@ function createChartData(history, currencyName, arrayName) {
 		newObj[currencyName] = history[date].USD;
 		arrayName.push(newObj);
 	}
+    
 }
-
-createChartData(history_clean_eur, "EUR", EUR)
-createChartData(history_clean_cad, "CAD", CAD)
-createChartData(history_clean_gbp, "GBP", GBP)
-createChartData(history_clean_pln, "PLN", PLN)
 
 var myformat = webix.Date.dateToStr("%m - %d");
 let compare_regular = function(cache1, cache2, currency) {
-	let yesterday = cache1[8][currency]
+	console.log(cache1)
+    let yesterday = cache1[8][currency]
 	let today = cache2["USD"]
 	let arrow = today > yesterday ? "top" : "bottom"
 	return arrow
 }
-let arrow_destination_cad = compare_regular(CAD, cache_cad, "CAD");
-let arrow_destination_eur = compare_regular(EUR, cache_eur, "EUR");
-let arrow_destination_gbp = compare_regular(GBP, cache_gbp, "GBP");
-let arrow_destination_pln = compare_regular(PLN, cache_pln, "PLN");
+
+currencies.forEach(currency => {
+  switch (currency) {
+    case 'CAD':
+      arr = CAD;
+      break;
+    case 'EUR':
+      arr = EUR;
+      break;
+    case 'GBP':
+      arr = GBP;
+      break;
+    case 'PLN':
+      arr = PLN;
+      break;
+  }
+  createChartData(history_clean[currency], currency, arr)
+  cache[currency]["arrow"] = compare_regular(arr, cache[currency], currency)
+});
+
 
 const CAD_panel = {
     view: "panel",
@@ -318,6 +326,8 @@ const PLN_panel = {
     }
 }
 
+const arrayOfObjects = Object.values(cache);
+
 const list_panel = {
     view: "panel",
     x: 0,
@@ -331,19 +341,14 @@ const list_panel = {
         view: "list",
         type: {
             templateStart: "<div>",
-            template: `	<div class="currencyName">CAD</div>
-                           <div class="flex"><div>${cache_cad["USD"]}</div> <span class="mdi mdi-arrow-${arrow_destination_cad}-right"></span></div>
-                           <div class="currencyName">EUR</div>
-                        <div class="flex"><div>${cache_eur["USD"]}</div> <span class="mdi mdi-arrow-${arrow_destination_eur}-right"></span></div>
-                        <div class="currencyName">GBP</div>
-                        <div class="flex"><div>${cache_gbp["USD"]}</div> <span class="mdi mdi-arrow-${arrow_destination_gbp}-right"></span></div>
-                        <div class="currencyName">PLN</div>
-                        <div class="flex"><div>${cache_pln["USD"]}</div> <span class="mdi mdi-arrow-${arrow_destination_pln}-right"></span></div>`,
+            template: `	<div class="currencyName"> #currency# </div>
+                           <div class="flex"><div> #USD# </div> <span class="mdi mdi-arrow-#arrow#-right"></span></div>`,
             templateEnd: "</div>"
         },
-        data: cache_cad
+        data: arrayOfObjects
     }
 }
+
 
 const currency_converter_panel = 	{
     view: "panel",
@@ -369,16 +374,16 @@ const currency_converter_panel = 	{
 
                             switch (num) {
                                 case '1':
-                                    $$("text").setValue(cache_cad["USD"] * newValue)
+                                    $$("text").setValue(cache["CAD"]["USD"] * newValue)
                                     break
                                 case '2':
-                                    $$("text").setValue(cache_eur["USD"] * newValue)
+                                    $$("text").setValue(cache["EUR"]["USD"] * newValue)
                                     break
                                 case '3':
-                                    $$("text").setValue(cache_gbp["USD"] * newValue)
+                                    $$("text").setValue(cache["GBP"]["USD"] * newValue)
                                     break
                                 case '4':
-                                    $$("text").setValue(cache_pln["USD"] * newValue)
+                                    $$("text").setValue(cache["PLN"]["USD"] * newValue)
                                     break
                             }
                         }
@@ -411,16 +416,16 @@ const currency_converter_panel = 	{
                             let num = $$("text1").getValue()
                             switch (newValue) {
                                 case '1':
-                                    $$("text").setValue(cache_cad["USD"] * num)
+                                    $$("text").setValue(cache["CAD"]["USD"] * num)
                                     break
                                 case '2':
-                                    $$("text").setValue(cache_eur["USD"] * num)
+                                    $$("text").setValue(cache["EUR"]["USD"] * num)
                                     break
                                 case '3':
-                                    $$("text").setValue(cache_gbp["USD"] * num)
+                                    $$("text").setValue(cache["GBP"]["USD"] * num)
                                     break
                                 case '4':
-                                    $$("text").setValue(cache_pln["USD"] * num)
+                                    $$("text").setValue(cache["PLN"]["USD"] * num)
                                     break
                             }
                         }
@@ -430,7 +435,7 @@ const currency_converter_panel = 	{
                     view: "text",
                     id: "text",
                     type: "number",
-                    value: cache_cad["USD"]
+                    value: cache["CAD"]["USD"]
                 }
 
             ]
