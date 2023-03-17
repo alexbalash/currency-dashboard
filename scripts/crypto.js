@@ -1,139 +1,20 @@
-var sidemenu = {
-	view: "sidemenu",
-	id: "menu",
-	width: 200,
-	position: "left",
-	state: function(state) {
-		var toolbarHeight = $$("toolbar").$height;
-		state.top = toolbarHeight;
-		state.height -= toolbarHeight;
-	},
-	body: {
-		view: "list",
-		borderless: true,
-		scroll: false,
-		template: "<span class='webix_icon mdi mdi-#icon#'></span> #value#",
-		data: [{
-				id: 1,
-				value: "Regular",
-			},
-			{
-				id: 2,
-				value: "Crypto",
-			},
-
-		],
-		select: true,
-		type: {
-			height: 40
-		}
-	}
-}
-
-var toolbar = {
-	view: "toolbar",
-	id: "toolbar",
-	elements: [{
-			view: "icon",
-			icon: "mdi mdi-menu",
-			click: function() {
-				if ($$("menu").config.hidden) {
-					$$("menu").show();
-				} else
-					$$("menu").hide();
-			}
-		},
-		{
-			view: "label",
-			label: "Currency Dashboard"
-		}
-	]
-}
-
-var format_api_date = webix.Date.dateToStr("%Y-%m-%d");
-
-function dateRange() {
-	const now = webix.Date.dayStart(new Date());
-	const end = webix.Date.add(now, -1, "day", true)
-	const start = webix.Date.add(now, -10, "day", true);
-	let start_date_btc = format_api_date(now)
-	let start_date = format_api_date(end)
-	let end_date = format_api_date(start)
-	return {
-		start_date_btc,
-		start_date,
-		end_date
-	}
-}
-
-let {
-	start_date_btc,
-	start_date,
-	end_date
-} = dateRange();
-
-function getBtc(start, end, id) {
-	return webix.ajax().headers({
-			'X-CoinAPI-Key': '0C407186-3F3A-4C34-83E7-8E4ABC08CE18'
-		}).get(`https://rest.coinapi.io/v1/exchangerate/${id}/USD/history?period_id=1DAY&time_start=${end}T00:00:00&time_end=${start}T00:00:00`)
-		.then(datas => {
-			var jsons = datas.json();
-			const obj = {
-				...jsons,
-				data: start_date_btc
-			};
-			setToCacheCrypto(BTCRate, obj, id);
-		})
-		.catch(err => {
-			webix.message("BTC: Server side error, see console", "error");
-		});
-}
-getBtc(start_date_btc, end_date, "BTC")
-getBtc(start_date_btc, end_date, "ETH")
-getBtc(start_date_btc, end_date, "USDT")
-getBtc(start_date_btc, end_date, "BNB")
-
-function getCurrentCrypto(id) {
-	return webix.ajax().headers({
-			'X-CoinAPI-Key': '0C407186-3F3A-4C34-83E7-8E4ABC08CE18'
-		}).get(`https://rest.coinapi.io/v1/exchangerate/${id}/USD`)
-		.then(datas => {
-			var jsons = datas.json();
-
-			jsons.rate = +jsons.rate.toFixed(3)
-			const obj = {
-				...jsons,
-				data: start_date_btc
-			};
-		
-			setToCacheCrypto(cryptoToday, obj, id);
-		})
-		.catch(err => {
-			webix.message("BTC: Server side error, see console", "error");
-		});
-}
-getCurrentCrypto("BTC")
-getCurrentCrypto("ETH")
-getCurrentCrypto("USDT")
-getCurrentCrypto("BNB")
-
-
+// caches to store data to avoid repetitive calls
 const BTCRate = new webix.DataCollection({
-	data: webix.storage.session.get("BTCrate-data") || []
+	data: webix.storage.session.get("BTCrate-data") || [],
+    on:{
+        "onAfterAdd": function() {
+            webix.storage.session.put("BTCrate-data", this.serialize());
+        }
+    }
 });
-
-BTCRate.attachEvent("onAfterAdd", function() {
-	webix.storage.session.put("BTCrate-data", this.serialize());
-});
-
 const cryptoToday = new webix.DataCollection({
-	data: webix.storage.session.get("cryptoToday-data") || []
+	data: webix.storage.session.get("cryptoToday-data") || [],
+    on:{
+        "onAfterAdd": function() {
+            webix.storage.session.put("cryptoToday-data", this.serialize());
+        }
+    }
 });
-
-cryptoToday.attachEvent("onAfterAdd", function() {
-	webix.storage.session.put("cryptoToday-data", this.serialize());
-});
-
 function setToCacheCrypto(storage, data, id) {
 	storage.add({
 		...data,
@@ -141,15 +22,43 @@ function setToCacheCrypto(storage, data, id) {
 	});
 }
 
-const cacheBTC = BTCRate.getItem("BTC");
-const cacheETH = BTCRate.getItem("ETH");
-const cacheUSDT = BTCRate.getItem("USDT");
-const cacheBNB = BTCRate.getItem("BNB");
-const todayBTC = cryptoToday.getItem("BTC");
-const todayETH = cryptoToday.getItem("ETH");
-const todayUSDT = cryptoToday.getItem("USDT");
-const todayBNB = cryptoToday.getItem("BNB");
+function getBtc(id, start, end) {
+    return webix.ajax().headers({
+			'X-CoinAPI-Key': '0C407186-3F3A-4C34-83E7-8E4ABC08CE18'
+		}).get(`https://rest.coinapi.io/v1/exchangerate/${id}/USD/history?period_id=1DAY&time_start=${start}&time_end=${end}`)
+		.then(data => {
+			const json = data.json();
+			const obj = {
+				...json,
+				date: new Date()
+			};
+			setToCacheCrypto(BTCRate, obj, id);
+		})
+		.catch(err => {
+			webix.message("BTC: Server side error, see console", "error");
+            console.log(err);
+		});
+}
 
+function getCurrentCrypto(id) {
+	return webix.ajax().headers({
+			'X-CoinAPI-Key': '0C407186-3F3A-4C34-83E7-8E4ABC08CE18'
+		}).get(`https://rest.coinapi.io/v1/exchangerate/${id}/USD`)
+		.then(data => {
+			const json = data.json();
+			json.rate = +json.rate.toFixed(3)
+			const obj = {
+				...json,
+				date: new Date()
+			};
+		
+			setToCacheCrypto(cryptoToday, obj, id);
+		})
+		.catch(err => {
+			webix.message("BTC: Server side error, see console", "error");
+            console.log(err);
+		});
+}
 
 const removeProps = (...propsToFilter) => obj => {
 	const newObj = Object.assign({}, obj);
@@ -157,12 +66,7 @@ const removeProps = (...propsToFilter) => obj => {
 	return newObj;
 };
 
-let BTC_clean = removeProps('data', 'id')(cacheBTC);
-let ETH_clean = removeProps('data', 'id')(cacheETH);
-let USDT_clean = removeProps('data', 'id')(cacheUSDT);
-let BNB_clean = removeProps('data', 'id')(cacheBNB);
-var myformat = webix.Date.dateToStr("%m - %d");
-
+const myformat = webix.Date.dateToStr("%m - %d");
 function time(array) {
 	for (let date in array) {
 		let string = new Date(array[date]["time_period_start"])
@@ -172,111 +76,53 @@ function time(array) {
 	return arrayOfObjects
 }
 
-let clean = time(BTC_clean)
-let cleanETH = time(ETH_clean)
-let cleanUSDT = time(USDT_clean)
-let cleanBNB = time(BNB_clean)
-
 let compare = function(cache1, cache2){
-	let yesterday = cache1[9].rate_close
-	let yesterdayValue =  cache1 === "cacheUSDT" ? + yesterday.toFixed(3): yesterday
+	let yesterday = cache1[9].rate_close // [fixme] what is this magic number 9?
+	let yesterdayValue = cache1 === "cacheUSDT" ? + yesterday.toFixed(3): yesterday
   	let today = cache2.rate
 	let arrow = today > yesterdayValue ? "top" : "bottom"
-  return arrow
-}
-let arrow_destination_btc = compare(cacheBTC, todayBTC);
-let arrow_destination_eth = compare(cacheETH, todayETH);
-let arrow_destination_usdt = compare(cacheUSDT, todayUSDT);
-let arrow_destination_bnb = compare(cacheBNB, todayBNB);
-
-const USDT_panel = {
-    view: "panel",
-    x: 1,
-    y: 0,
-    dx: 3,
-    dy: 2,
-    resize: true,
-    css: "panel_drag_view",
-    icon: false,
-    body: {
-        view: "chart",
-        type: "line",
-        data: cleanUSDT,
-        value: "#rate_close#",
-        xAxis: {
-            template: "#time_period_start#"
-        },
-        yAxis: {},
-      tooltip: "#rate_close#"
-    }
+    return arrow
 }
 
-const BNB_panel = {
-    view: "panel",
-    x: 4,
-    y: 0,
-    dx: 3,
-    dy: 2,
-    resize: true,
-    css: "panel_drag_view",
-    icon: false,
-    body: {
-        view: "chart",
-        type: "line",
-        data: cleanBNB,
-        value: "#rate_close#",
-        xAxis: {
-            template: "#time_period_start#"
-        },
-        yAxis: {},
-      tooltip: "#rate_close#"
-    }
+const currencies = ["BTC", "ETC", "USDT", "BNB"];
+const cacheCurrencies = {};
+const todayCurrencies = {};
+const cleanCrypto = {};
+const cleanCurrencies = {};
+const arrowDestination = {};
+const listData = [];
+
+function iterateAsync(arr, code, ctx) {
+	ctx = ctx || 0;
+	if (ctx >= arr.length) return;
+	return code(arr[ctx], ctx).then(() => {
+		ctx += 1;
+		return iterateAsync(arr, code, ctx);
+	});
 }
 
-const ETH_panel = {
-    view: "panel",
-    x: 1,
-    y: 2,
-    dx: 3,
-    dy: 2,
-    resize: true,
-    css: "panel_drag_view",
-    icon: false,
-    body: {
-        view: "chart",
-        type: "line",
-        data: cleanETH,
-        value: "#rate_close#",
-        xAxis: {
-            template: "#time_period_start#"
-        },
-        yAxis: {},
-      tooltip: "#rate_close#"
-    }
-}
+iterateAsync(currencies, c => {
+    const now = webix.Date.dayStart(new Date());
+    const start = webix.Date.add(now, -1, "day", true).toISOString();
+    const end = now.toISOString();
 
-const BTC_panel = {
-    view: "panel",
-    x: 4,
-    y: 2,
-    dx: 3,
-    dy: 2,
-    resize: true,
-    css: "panel_drag_view",
-    icon: false,
-    body: {
-        view: "chart",
-        type: "line",
-        data: clean,
-        value: "#rate_close#",
-        xAxis: {
-            template: "#time_period_start#"
-        },
-        yAxis: {},
-        tooltip: "#rate_close#"
+    webix.promise.all([
+        getBtc(c, start, end),
+        getCurrentCrypto(c)
+    ]).then(() => {
+        cacheCurrencies[c] = BTCRate.getItem(c);
+        todayCurrencies[c] = cryptoToday.getItem(c);
+        cleanCrypto[c] = removeProps('date', 'id')(cacheCurrencies[c]);
+        cleanCurrencies[c] = time(cleanCrypto[c]);
+        arrowDestination[c] = compare(cacheCurrencies[c], todayCurrencies[c]);
 
-    }
-}
+        listData.push({ id: c, name: c, rate: todayCurrencies[c], direction: arrowDestination[c] });
+    });
+}).then(() => {
+    // todo: parse all data where it should be
+});
+
+// UI components
 
 const crypto_list_panel = {
     view: "panel",
@@ -289,21 +135,15 @@ const crypto_list_panel = {
     icon: false,
     body: {
         view: "list",
-        type: {
-            templateStart: "<div>",
-            template: `	<div class="currencyName">BTC</div>
-                           <div class="flex"><div>${todayBTC.rate}</div> <span class="mdi mdi-arrow-${arrow_destination_btc}-right"></span></div>
-                           <div class="currencyName">ETH</div>
-                        <div class="flex"><div>${todayETH.rate}</div> <span class="mdi mdi-arrow-${arrow_destination_eth}-right"></span></div>
-                        <div class="currencyName">USDT</div>
-                        <div class="flex"><div>${todayUSDT.rate}</div> <span class="mdi mdi-arrow-${arrow_destination_usdt}-right"></span></div>
-                        <div class="currencyName">BNB</div>
-                        <div class="flex"><div>${todayBNB.rate}</div> <span class="mdi mdi-arrow-${arrow_destination_bnb}-right"></span></div>`,
-            templateEnd: "</div>"
-        },
-        data: todayBTC
+        id: "listOfRateChange",
+        template: obj => 
+            `<div class="currencyName">${obj.id}</div>
+            <div class="flex"><div>${obj.rate}</div>
+                <span class="mdi mdi-arrow-${obj.direction}-right"></span>
+            </div>`,
     }
-}
+};
+// [todo] parse today data for all currencies
 
 const crypto_converter_panel = {
     view: "panel",
@@ -316,90 +156,72 @@ const crypto_converter_panel = {
     icon: false,
     body: {
         view: "form",
-        elements: [{
-            rows: [{
-                    view: "text",
-                    id: "text1",
-                    type: "number",
-              
-                    value: 1,
-                    on: {
-                        onChange: function(newValue, oldValue, config) {
-                            let num = $$("select").getValue();
-                            switch (num) {
-                                case '1':
-                                    $$("text").setValue(todayBTC.rate * newValue)
-                                    break
-                                case '2':
-                                    $$("text").setValue(todayETH.rate * newValue)
-                                    break
-                                case '3':
-                                    $$("text").setValue(todayUSDT.rate * newValue)
-                                    break
-                                case '4':
-                                    $$("text").setValue(todayBNB.rate * newValue)
-                                    break
-                            }
-
-                        }
+        rows: [
+            {
+                view: "text",
+                id: "amount",
+                type: "number",
+                value: 1,
+                on: {
+                    onChange: amount => {
+                        const currency = $$("select").getValue();
+                        $$("resultAmount").setValue(todayCurrencies[currency] * amount);
                     }
-                },
-                {
-                    view: "richselect",
-                    id: "select",
-                    value: 1,
-                    options: [{
-                            id: 1,
-                            value: "BTC"
-                        },
-                        {
-                            id: 2,
-                            value: "ETH"
-                        },
-                        {
-                            id: 3,
-                            value: "USDT"
-                        },
-                              {
-                            id: 4,
-                            value: "BNB"
-                        }
-                    ],
-                    on: {
-                        onChange: function(newValue, oldValue, config) {
-                          
-                            let num = $$("text1").getValue()
-                            switch (newValue) {
-                                case '1':
-                                    $$("text").setValue(todayBTC.rate * num)
-                                    break
-                                case '2':
-                                    $$("text").setValue(todayETH.rate * num)
-                                    break
-                                case '3':
-                                    $$("text").setValue(todayUSDT.rate * num)
-                                    break
-                                case '4':
-                                    $$("text").setValue(todayBNB.rate * num)
-                                    break
-
-                            }
-                        }
-                    }
-
-                },
-                {
-                    view: "text",
-                    id: "text",
-                    type: "number",
-                    value: todayBTC.rate,
-                  
                 }
+            },
+            {
+                view: "richselect",
+                id: "select",
+                value: "BTC",
+                options: currencies,
+                on: {
+                    onChange: currency => {
+                        const amount = $$("amount").getValue();
+                        $$("resultAmount").setValue(todayCurrencies[currency] * amount);
+                    }
+                }
+            },
+            {
+                view: "text",
+                id: "resultAmount",
+                type: "number",
+                value: todayCurrencies["BTC"],
+                readonly: true,
+            }
+        ]
+    }
+};
 
-            ]
-        }]
+function getPanel(x, y, dx, dy, data){
+    return {
+        view: "panel",
+        x,
+        y,
+        dx,
+        dy,
+        resize: true,
+        css: "panel_drag_view",
+        icon: false,
+        body: {
+            view: "chart",
+            type: "line",
+            data,
+            value: "#rate_close#",
+            xAxis: {
+                template: "#time_period_start#"
+            },
+            yAxis: {},
+            tooltip: "#rate_close#"
+        }
     }
 }
+
+const cells = [
+    { x: 1, y: 0, dx: 3, dy: 2 },
+    { x: 4, y: 0, dx: 3, dy: 2 },
+    { x: 1, y: 2, dx: 3, dy: 2 },
+    { x: 4, y: 2, dx: 3, dy: 2 }
+];
 
 const cryptogrid = {
 	view: "dashboard",
@@ -409,24 +231,9 @@ const cryptogrid = {
 	cellHeight: 200,
 	cellWidth: 180,
 	cells: [
-        USDT_panel,
 		crypto_list_panel,
-		BNB_panel,
-		ETH_panel,
-		BTC_panel,
-		crypto_converter_panel
+		crypto_converter_panel,
+        ...cells.map(cell => getPanel(cell)),
+        // [todo] parse clean dataset
 	]
 };
-
-webix.ready(function() {
-	webix.ui({
-		rows: [
-			toolbar, {
-				view: "scrollview",
-				scroll: "xy",
-				body: cryptogrid
-			}
-		]
-	});
-	webix.ui(sidemenu);
-});

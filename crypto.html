@@ -8,10 +8,29 @@
 		<script type="text/javascript" src="https://cdn.webix.com/site/webix.js"></script>
 		<link rel="stylesheet" type="text/css" href="https://cdn.webix.com/site/webix.css">
         <link rel="stylesheet" href="//cdn.webix.com/materialdesignicons/5.8.95/css/materialdesignicons.min.css" type="text/css" charset="utf-8">
-        <link href="styles.css" rel="stylesheet">
-		<script type="text/javascript" src="/scripts/crypto.js"></script>
+        
+		<!-- app -->
+		<link href="styles.css" rel="stylesheet">
+		<script type="text/javascript" src="./scripts/crypto.js"></script>
+		<script type="text/javascript" src="./scripts/sidemenu.js"></script>
+		<script type="text/javascript" src="./scripts/toolbar.js"></script>
 	</head>
 	<body>
+		<script>
+			webix.ready(function() {
+				webix.ui({
+					rows: [
+						toolbar, 
+						{
+							view: "scrollview",
+							scroll: "xy",
+							body: cryptogrid
+						}
+					]
+				});
+				webix.ui(sidemenu);
+			});
+		</script>
 
 	</body>
 </html>
