@@ -2,17 +2,17 @@
 const BTCRate = new webix.DataCollection({
 	data: webix.storage.session.get("BTCrate-data") || [],
     on:{
-        "onAfterAdd": function() {
-            webix.storage.session.put("BTCrate-data", this.serialize());
-        }
+		"onAfterAdd": function() {
+		    webix.storage.session.put("BTCrate-data", this.serialize());
+		}
     }
 });
 const cryptoToday = new webix.DataCollection({
 	data: webix.storage.session.get("cryptoToday-data") || [],
     on:{
-        "onAfterAdd": function() {
-            webix.storage.session.put("cryptoToday-data", this.serialize());
-        }
+		"onAfterAdd": function() {
+		    webix.storage.session.put("cryptoToday-data", this.serialize());
+		}
     }
 });
 function setToCacheCrypto(storage, data, id) {
@@ -36,7 +36,7 @@ function getBtc(id, start, end) {
 		})
 		.catch(err => {
 			webix.message("BTC: Server side error, see console", "error");
-            console.log(err);
+		    console.log(err);
 		});
 }
 
@@ -56,7 +56,7 @@ function getCurrentCrypto(id) {
 		})
 		.catch(err => {
 			webix.message("BTC: Server side error, see console", "error");
-            console.log(err);
+		    console.log(err);
 		});
 }
 
@@ -106,17 +106,17 @@ iterateAsync(currencies, c => {
     const start = webix.Date.add(now, -1, "day", true).toISOString();
     const end = now.toISOString();
 
-    webix.promise.all([
-        getBtc(c, start, end),
-        getCurrentCrypto(c)
+    return webix.promise.all([
+		getBtc(c, start, end),
+		getCurrentCrypto(c)
     ]).then(() => {
-        cacheCurrencies[c] = BTCRate.getItem(c);
-        todayCurrencies[c] = cryptoToday.getItem(c);
-        cleanCrypto[c] = removeProps('date', 'id')(cacheCurrencies[c]);
-        cleanCurrencies[c] = time(cleanCrypto[c]);
-        arrowDestination[c] = compare(cacheCurrencies[c], todayCurrencies[c]);
+		cacheCurrencies[c] = BTCRate.getItem(c);
+		todayCurrencies[c] = cryptoToday.getItem(c);
+		cleanCrypto[c] = removeProps('date', 'id')(cacheCurrencies[c]);
+		cleanCurrencies[c] = time(cleanCrypto[c]);
+		arrowDestination[c] = compare(cacheCurrencies[c], todayCurrencies[c]);
 
-        listData.push({ id: c, name: c, rate: todayCurrencies[c], direction: arrowDestination[c] });
+		listData.push({ id: c, name: c, rate: todayCurrencies[c], direction: arrowDestination[c] });
     });
 }).then(() => {
     // todo: parse all data where it should be
@@ -134,13 +134,13 @@ const crypto_list_panel = {
     css: "panel_drag_view",
     icon: false,
     body: {
-        view: "list",
-        id: "listOfRateChange",
-        template: obj => 
-            `<div class="currencyName">${obj.id}</div>
-            <div class="flex"><div>${obj.rate}</div>
-                <span class="mdi mdi-arrow-${obj.direction}-right"></span>
-            </div>`,
+		view: "list",
+		id: "listOfRateChange",
+		template: obj => 
+		    `<div class="currencyName">${obj.id}</div>
+		    <div class="flex"><div>${obj.rate}</div>
+				<span class="mdi mdi-arrow-${obj.direction}-right"></span>
+		    </div>`,
     }
 };
 // [todo] parse today data for all currencies
@@ -155,65 +155,65 @@ const crypto_converter_panel = {
     css: "panel_drag_view",
     icon: false,
     body: {
-        view: "form",
-        rows: [
-            {
-                view: "text",
-                id: "amount",
-                type: "number",
-                value: 1,
-                on: {
-                    onChange: amount => {
-                        const currency = $$("select").getValue();
-                        $$("resultAmount").setValue(todayCurrencies[currency] * amount);
-                    }
-                }
-            },
-            {
-                view: "richselect",
-                id: "select",
-                value: "BTC",
-                options: currencies,
-                on: {
-                    onChange: currency => {
-                        const amount = $$("amount").getValue();
-                        $$("resultAmount").setValue(todayCurrencies[currency] * amount);
-                    }
-                }
-            },
-            {
-                view: "text",
-                id: "resultAmount",
-                type: "number",
-                value: todayCurrencies["BTC"],
-                readonly: true,
-            }
-        ]
+		view: "form",
+		rows: [
+		    {
+				view: "text",
+				id: "amount",
+				type: "number",
+				value: 1,
+				on: {
+				    onChange: amount => {
+						const currency = $$("select").getValue();
+						$$("resultAmount").setValue(todayCurrencies[currency] * amount);
+				    }
+				}
+		    },
+		    {
+				view: "richselect",
+				id: "select",
+				value: "BTC",
+				options: currencies,
+				on: {
+				    onChange: currency => {
+						const amount = $$("amount").getValue();
+						$$("resultAmount").setValue(todayCurrencies[currency] * amount);
+				    }
+				}
+		    },
+		    {
+				view: "text",
+				id: "resultAmount",
+				type: "number",
+				value: todayCurrencies["BTC"],
+				readonly: true,
+		    }
+		]
     }
 };
 
 function getPanel(x, y, dx, dy, data){
     return {
-        view: "panel",
-        x,
-        y,
-        dx,
-        dy,
-        resize: true,
-        css: "panel_drag_view",
-        icon: false,
-        body: {
-            view: "chart",
-            type: "line",
-            data,
-            value: "#rate_close#",
-            xAxis: {
-                template: "#time_period_start#"
-            },
-            yAxis: {},
-            tooltip: "#rate_close#"
-        }
-    }
+		view: "panel",
+		x,
+		y,
+		dx,
+		dy,
+		resize: true,
+		css: "panel_drag_view",
+		icon: false,
+		body: {
+		    view: "chart",
+		    type: "line",
+		    data,
+		    value: "#rate_close#",
+		    xAxis: {
+				template: "#time_period_start#"
+		    },
+		    yAxis: {},
+		    tooltip: "#rate_close#"
+		}
+    };
 }
 
 const cells = [
@@ -233,7 +233,7 @@ const cryptogrid = {
 	cells: [
 		crypto_list_panel,
 		crypto_converter_panel,
-        ...cells.map(cell => getPanel(cell)),
-        // [todo] parse clean dataset
+		...cells.map(cell => getPanel(cell)),
+		// [todo] parse clean dataset
 	]
 };

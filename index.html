@@ -12,6 +12,7 @@
 		<!-- app -->
 		<link href="styles.css" rel="stylesheet">
 		<script type="text/javascript" src="./scripts/crypto.js"></script>
+		<script type="text/javascript" src="./scripts/regular.js"></script>
 		<script type="text/javascript" src="./scripts/sidemenu.js"></script>
 		<script type="text/javascript" src="./scripts/toolbar.js"></script>
 	</head>
@@ -24,7 +25,13 @@
 						{
 							view: "scrollview",
 							scroll: "xy",
-							body: cryptogrid
+							body: {
+								id: "cells",
+								cells: [
+									cryptogrid,
+									regulargrid
+								]
+							}
 						}
 					]
 				});
